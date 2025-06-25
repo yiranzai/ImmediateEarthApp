@@ -14,63 +14,19 @@
     "store:default",
     "dialog:default",
     "fs:default",
-    "fs:allow-read",
-    "fs:allow-write",
-    "fs:allow-read-file",
-    "fs:allow-appdata-read",
-    "fs:scope-appdata-recursive",
-    "fs:allow-app-read",
-    "fs:allow-app-read-recursive",
-    "fs:allow-app-write",
-    "fs:allow-app-write-recursive",
-    "fs:allow-data-write",
-    "fs:allow-data-read",
-    "fs:allow-download-write",
-    "fs:allow-download-read",
-    "fs:allow-picture-write",
-    "fs:allow-picture-read",
-    "fs:allow-desktop-write",
-    "fs:allow-desktop-read",
-    "fs:allow-home-write",
-    "fs:allow-home-read",
-    "fs:allow-video-write",
-    "fs:allow-video-read",
-    "fs:allow-document-write",
-    "fs:allow-document-read",
-
+    "fs:read-all",
+    "fs:write-all",
+    "fs:allow-rename",
+    "fs:allow-mkdir",
+    "fs:allow-exists",
+    "fs:allow-watch",
+    "fs:read-dirs",
     {
       "identifier": "fs:scope",
       "allow": [
-        {
-          "path": "$APPLOCALDATA"
-        },
-        {
-          "path": "$APPLOCALDATA/**"
-        },
-        
-        {
-          "path": "$DESKTOP"
-        },
-        {
-          "path": "$DESKTOP/**"
-        },        {
-          "path": "$HOME"
-        },
-        {
-          "path": "$HOME/**"
-        },{
-          "path": "$PICTURE"
-        },
-        {
-          "path": "$PICTURE/**"
-        },
-        {
-          "path": "$DOWNLOAD/**"
-        },
-        {
-          "path": "$DOWNLOAD"
-        }
+        "**/*"
       ]
-    }
+    },
+    "log:default"
   ]
 }

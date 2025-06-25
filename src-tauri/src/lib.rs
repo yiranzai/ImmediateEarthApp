@@ -1,8 +1,9 @@
 // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
 use base64::{engine::general_purpose, Engine};
-use image::{DynamicImage, GenericImage, GenericImageView, ImageBuffer, Rgba};
+use image::{DynamicImage, GenericImageView, ImageBuffer, Rgba};
 use std::io::Cursor;
-use tauri::command;
+use log;
+use tauri_plugin_log::{Target, TargetKind};
 
 #[tauri::command]
 async fn fetch_and_stitch_tiles(
@@ -18,21 +19,18 @@ async fn fetch_and_stitch_tiles(
         let url = url.clone();
         handles.push(tauri::async_runtime::spawn(async move {
             // 日志：开始下载瓦片
-            println!("开始下载第{}个瓦片: {}", idx + 1, url);
+            log::info!("开始下载第{}个瓦片: {}", idx + 1, url);
             let resp = client.get(&url).send().await.map_err(|e| e.to_string())?;
             let bytes = resp.bytes().await.map_err(|e| e.to_string())?;
             // 判断字节数是否为 2834
-            println!("第{}个瓦片字节数为{}", idx + 1, bytes.len());
+            log::warn!("第{}个瓦片字节数为2834，判定为无效瓦片", idx + 1);
             if bytes.len() == 2834 {
-                println!(
-                    "第{}个瓦片字节数为2834，判定为无效瓦片，终止本次拼接。",
-                    idx + 1
-                );
+                log::error!("第{}个瓦片字节数为2834，判定为无效瓦片，终止本次拼接。", idx + 1);
                 return Err("无效瓦片数据".to_string());
             }
             let img = image::load_from_memory(&bytes).map_err(|e| e.to_string())?;
             // 日志：下载并解码完成，打印图片宽高
-            println!(
+            log::info!(
                 "第{}个瓦片下载并解码完成，宽度: {}，高度: {}",
                 idx + 1,
                 img.width(),
@@ -48,10 +46,10 @@ async fn fetch_and_stitch_tiles(
     for (idx, handle) in handles.into_iter().enumerate() {
         let img = handle.await.map_err(|e| e.to_string())??;
         // 日志：收集到第N张图片
-        println!("已收集第{}张图片", idx + 1);
+        log::info!("已收集第{}张图片", idx + 1);
         // 检查是否为无效瓦片
         if img.width() == 2834 && img.height() == 2834 {
-            println!(
+            log::error!(
                 "第{}张图片为无效瓦片，宽高均为2834，终止本次拼接。",
                 idx + 1
             );
@@ -72,7 +70,7 @@ async fn fetch_and_stitch_tiles(
         let x = (i as u32 % tiles_per_row) * tile_size;
         let y = (i as u32 / tiles_per_row) * tile_size;
         // 日志：开始拼接第N张图片
-        println!("开始拼接第{}张图片，目标位置: ({}, {})", i + 1, x, y);
+        log::info!("开始拼接第{}张图片，目标位置: ({}, {})", i + 1, x, y);
         // 拷贝瓦片到目标图像
         for ty in 0..tile_size {
             for tx in 0..tile_size {
@@ -96,6 +94,9 @@ async fn fetch_and_stitch_tiles(
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
+        .plugin(tauri_plugin_log::Builder::new().target(Target::new(
+            TargetKind::Stdout,
+          )).build())
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_store::Builder::new().build())
