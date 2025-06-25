@@ -1,5 +1,64 @@
 <template>
   <div class="relative w-screen h-screen overflow-hidden bg-black">
+    <!-- 刷新按钮（左上角悬浮） -->
+    <button
+      class="absolute left-4 top-4 z-30 bg-black/60 hover:bg-black/80 text-white rounded-full p-2 shadow-lg transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-blue-400"
+      :disabled="isLoading"
+      @click="onRefresh"
+      aria-label="刷新卫星图像"
+      title="刷新卫星图像"
+    >
+      <!-- 刷新SVG图标 -->
+      <svg v-if="!isLoading" xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356-2.582A9 9 0 11 5.582 9M4 9V4m0 0h5" />
+      </svg>
+      <!-- loading 状态下显示旋转动画 -->
+      <svg v-else class="animate-spin h-6 w-6" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"></path>
+      </svg>
+    </button>
+    <!-- 设置按钮（右上角悬浮） -->
+    <button
+      class="absolute right-4 top-4 z-30 bg-black/60 hover:bg-black/80 text-white rounded-full p-2 shadow-lg transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-blue-400"
+      @click="openSettings"
+      aria-label="设置"
+      title="设置"
+    >
+      <!-- 齿轮SVG图标 -->
+      <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11.049 2.927c.3-1.14 1.603-1.14 1.902 0a1.724 1.724 0 002.573 1.01c.943-.545 2.042.454 1.497 1.398a1.724 1.724 0 001.01 2.573c1.14.3 1.14 1.603 0 1.902a1.724 1.724 0 00-1.01 2.573c.545.943-.454 2.042-1.398 1.497a1.724 1.724 0 00-2.573 1.01c-.3 1.14-1.603 1.14-1.902 0a1.724 1.724 0 00-2.573-1.01c-.943.545-2.042-.454-1.497-1.398a1.724 1.724 0 00-1.01-2.573c-1.14-.3-1.14-1.603 0-1.902a1.724 1.724 0 001.01-2.573c-.545-.943.454-2.042 1.398-1.497.943.545 2.042-.454 1.497-1.398z" />
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+      </svg>
+    </button>
+    <!-- 设置弹窗 -->
+    <div v-if="showSettings" class="fixed inset-0 z-40 flex items-center justify-center bg-black/40">
+      <div class="bg-white rounded-2xl shadow-2xl p-8 w-[90vw] max-w-md relative">
+        <h2 class="text-2xl font-bold mb-6 text-black">设置</h2>
+        <form @submit.prevent="saveSettings">
+          <div class="mb-6">
+            <label class="block mb-2 text-black font-semibold">定时加载间隔（分钟）</label>
+            <input type="number" min="1" v-model.number="settings.interval"
+              class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400 bg-white text-black text-lg transition" />
+          </div>
+          <div class="mb-6">
+            <label class="block mb-2 text-black font-semibold">OpenWeatherMap Key</label>
+            <input type="text" v-model="settings.owmKey"
+              class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400 bg-white text-black text-lg transition" />
+          </div>
+          <div class="mb-8">
+            <label class="block mb-2 text-black font-semibold">OpenWeatherMap 地址</label>
+            <input type="text" v-model="settings.owmUrl"
+              class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400 bg-white text-black text-lg transition" />
+          </div>
+          <div class="flex justify-end gap-4">
+            <button type="button" class="px-5 py-2 rounded-lg bg-gray-200 text-gray-700 hover:bg-gray-300 font-semibold" @click="showSettings = false">取消</button>
+            <button type="submit" class="px-5 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700 font-semibold shadow transition">保存</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
     <!-- 加载状态 -->
     <div v-if="isLoading" class="absolute inset-0 flex items-center justify-center bg-black/70 z-10">
       <div class="text-white text-center">
@@ -14,7 +73,13 @@
     </div>
 
     <!-- 图像容器用于CSS裁剪 - 添加id="satellite-container" -->
-    <div id="satellite-container" class="relative w-full h-full overflow-hidden">
+    <div
+      id="satellite-container"
+      class="relative w-full h-full overflow-hidden"
+      @dblclick="onSaveImage"
+      @touchstart="onTouchStart"
+      @touchend="onTouchEnd"
+    >
       <!-- 卫星图像画布 -->
       <canvas
         id="satellite-canvas"
@@ -86,9 +151,13 @@ canvas {
 </style>
 
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted, computed } from 'vue'
+import { ref, onMounted, onUnmounted, computed, watch } from 'vue'
 import { useStore } from '../store'
 import { formatDate } from '../services/dateUtils'
+import { invoke } from '@tauri-apps/api/core'
+import { Store } from '@tauri-apps/plugin-store'
+import { save } from '@tauri-apps/plugin-dialog'
+import { writeFile } from '@tauri-apps/plugin-fs'
 
 const store = useStore()
 // 为了避免类型"null"不能赋值给类型"HTMLCanvasElement"的问题，将类型定义为可空类型
@@ -97,23 +166,43 @@ const currentTime = ref(new Date())
 const isLoading = ref(true)
 const errorMessage = ref('')
 const imageStyle = ref<Record<string, string>>({})
+const hasLoadedImage = ref(false) // 是否已成功加载过图片
 
 // 图像参数
 const multiple = 4
 const tileSize = 550
 const tiles: { x: number; y: number; image: HTMLImageElement }[] = []
 
+// 设置弹窗显示状态
+const showSettings = ref(false)
+// 设置项，初始化时从 localStorage 读取
+const settings = ref({
+  interval: Number(localStorage.getItem('satellite_interval')) || 10,
+  owmKey: localStorage.getItem('owm_key') || '',
+  owmUrl: localStorage.getItem('owm_url') || '',
+})
+
+// 在模块作用域只初始化一次
+let storePromise: Promise<Store> | null = null
+
+function getStore() {
+  if (!storePromise) {
+    storePromise = Store.load('settings.json')
+  }
+  return storePromise
+}
+
 // 计算当前可用的卫星图像时间（每10分钟更新一次）
 const getImageTime = () => {
   const now = new Date()
-  now.setUTCMinutes(now.getUTCMinutes()-10) // 减去10分钟以确保数据可用
+  now.setUTCMinutes(now.getUTCMinutes()) // 减去10分钟以确保数据可用
   now.setUTCMinutes(Math.floor(now.getUTCMinutes() / 10) * 10)
   return now
 }
 
-// 生成瓦片URL
-const generateTileUrls = () => {
-  const time = getImageTime()
+// 生成瓦片URL，支持传入指定时间
+const generateTileUrls = (timeArg?: Date) => {
+  const time = timeArg ? new Date(timeArg) : getImageTime()
   const year = time.getUTCFullYear()
   const month = String(time.getUTCMonth() + 1).padStart(2, '0')
   const day = String(time.getUTCDate()).padStart(2, '0')
@@ -131,63 +220,79 @@ const generateTileUrls = () => {
   return urls
 }
 
-// 加载图像瓦片
-const loadTiles = async () => {
-  isLoading.value = true
-  errorMessage.value = ''
-  tiles.length = 0
-
-  try {
-    const urls = generateTileUrls()
-    const promises = urls.map((url, index) => {
-      return new Promise<{ x: number; y: number; image: HTMLImageElement }>((resolve, reject) => {
-        const img = new Image()
-        img.src = url
-        img.onload = () => {
-          resolve({
-            x: index % multiple,
-            y: Math.floor(index / multiple),
-            image: img,
-          })
-        }
-        img.onerror = () => {
-          const error = new Error(`Failed to load tile: ${url}`)
-          console.error(`[${new Date().toISOString()}] Error loading tile: ${url}`, error)
-          reject(error)
-        }
-      })
-    })
-
-    const loadedTiles = await Promise.all(promises)
-    loadedTiles.forEach(tile => tiles.push(tile))
-    renderImage()
-  } catch (err) {
-    const errorMsg = err instanceof Error ? err.message : 'Failed to load satellite images'
-    errorMessage.value = errorMsg
-    console.error(`[${new Date().toISOString()}] Satellite image loading failed:`, err)
-  } finally {
-    isLoading.value = false
+// 加载并拼接卫星图像（支持递归回退时间）
+async function loadStitchedImage(timeArg?: Date, retryCount = 0) {
+  // 最大回退次数，防止死循环
+  const MAX_RETRY = 12
+  // 只有首次未加载过图片时才 loading
+  if (!hasLoadedImage.value) {
+    isLoading.value = true
   }
-}
-
-// 渲染拼接后的图像并应用智能裁剪
-const renderImage = () => {
-  if (!canvasRef.value || tiles.length === 0) return
-
-  const canvas = canvasRef.value
-  const ctx = canvas.getContext('2d')
-  if (!ctx) return
-
-  // 设置画布大小
-  canvas.width = tileSize * multiple
-  canvas.height = tileSize * multiple
-
-  // 绘制所有瓦片
-  tiles.forEach(tile => {
-    ctx.drawImage(tile.image, tile.x * tileSize, tile.y * tileSize, tileSize, tileSize)
-  })
-
-  applySmartCropping()
+  errorMessage.value = ''
+  try {
+    // 生成瓦片 URL 数组
+    const urls = generateTileUrls(timeArg)
+    // 调用后端方法获取拼接后的 base64 图像
+    const base64 = await invoke<string>('fetch_and_stitch_tiles', {
+      urls,
+      tilesPerRow: multiple,
+      tileSize,
+    })
+    // 创建图片对象
+    const img = new window.Image()
+    img.src = 'data:image/png;base64,' + base64
+    // 图片加载完成后绘制到 canvas
+    img.onload = () => {
+      if (!canvasRef.value) return
+      const canvas = canvasRef.value
+      const ctx = canvas.getContext('2d')
+      if (!ctx) return
+      // 设置画布大小
+      canvas.width = img.width
+      canvas.height = img.height
+      // 绘制图片
+      ctx.clearRect(0, 0, canvas.width, canvas.height)
+      ctx.drawImage(img, 0, 0)
+      // 应用智能裁剪
+      applySmartCropping()
+      // 标记已成功加载过图片
+      hasLoadedImage.value = true
+      // 图片渲染成功后关闭 loading
+      isLoading.value = false
+    }
+  } catch (err) {
+    // 如果是无效瓦片数据，首次加载失败才递归回退时间
+    if (err && typeof err === 'string' && err.includes('无效瓦片数据')) {
+      console.warn(`[loadStitchedImage] 检测到无效瓦片数据，本次不渲染，等待下次自动重试，当前重试次数: ${retryCount}`)
+      // 只有首次未加载过图片时才递归回退时间
+      if (!hasLoadedImage.value && retryCount < MAX_RETRY) {
+        // 往前推 60 分钟
+        const prevTime = timeArg ? new Date(timeArg) : getImageTime()
+        prevTime.setUTCMinutes(prevTime.getUTCMinutes() - 60)
+        // 递归重试
+        await loadStitchedImage(prevTime, retryCount + 1)
+        return
+      }
+      // 超过最大重试次数，显示错误
+      if (!hasLoadedImage.value && retryCount >= MAX_RETRY) {
+        errorMessage.value = '长时间未获取到有效卫星图像，请稍后重试'
+        isLoading.value = false
+      } else if (!hasLoadedImage.value) {
+        isLoading.value = true
+      } else {
+        isLoading.value = false
+      }
+      return
+    }
+    const errorMsg = err instanceof Error ? err.message : '卫星图像加载失败'
+    errorMessage.value = errorMsg
+    console.error(`[${new Date().toISOString()}] 卫星图像加载失败:`, err)
+  } finally {
+    // 只有首次未加载过图片且没有 errorMessage 时才关闭 loading
+    if (!errorMessage.value && hasLoadedImage.value) {
+      isLoading.value = false
+    }
+  }
 }
 
 // 应用智能裁剪算法 (添加详细日志)
@@ -296,16 +401,31 @@ const applySmartCropping = () => {
   )
 }
 
-// 定时更新图像和时间
-const startUpdates = () => {
-  // 每分钟更新一次时间
-  setInterval(() => {
-    currentTime.value = new Date()
-  }, 60000)
+// 保存设置项到 localStorage，并关闭弹窗
+async function saveSettings() {
+  const store = await getStore()
+  await store.set('interval', settings.value.interval)
+  await store.set('owmKey', settings.value.owmKey)
+  await store.set('owmUrl', settings.value.owmUrl)
+  await store.save()
+  showSettings.value = false
+  resetIntervalTimer()
+}
 
-  // 每10分钟尝试更新一次图像
-  loadTiles()
-  setInterval(loadTiles, 10 * 60 * 1000)
+// 定时器句柄
+let intervalTimer: number | null = null
+
+// 重置定时器，使用新的间隔
+function resetIntervalTimer() {
+  if (intervalTimer !== null) {
+    clearInterval(intervalTimer)
+  }
+  // 立即加载一次
+  loadStitchedImage()
+  // 设置新的定时器
+  intervalTimer = window.setInterval(() => {
+    loadStitchedImage()
+  }, settings.value.interval * 60 * 1000)
 }
 
 // 添加防抖函数
@@ -321,8 +441,24 @@ function debounce<T extends (...args: any[]) => void>(func: T, delay: number): T
   } as T
 }
 
+// 刷新按钮点击事件
+function onRefresh() {
+  if (!isLoading.value) {
+    loadStitchedImage()
+  }
+}
+
+async function openSettings() {
+  const store = await getStore()
+  settings.value.interval = (await store.get('interval')) ?? 10
+  settings.value.owmKey = (await store.get('owmKey')) ?? ''
+  settings.value.owmUrl = (await store.get('owmUrl')) ?? ''
+  showSettings.value = true
+}
+
 onMounted(() => {
   startUpdates()
+  resetIntervalTimer()
   // 添加窗口大小调整事件监听 - 添加日志
   const handleResize = debounce(() => {
     console.log('[resize] 窗口大小变化，触发裁剪更新')
@@ -345,6 +481,46 @@ onMounted(() => {
     console.log('[onUnmounted] 已移除窗口大小调整事件监听')
   })
 })
+
+// startUpdates 只更新时间，不再负责定时拉图
+const startUpdates = () => {
+  // 每分钟更新时间
+  setInterval(() => {
+    currentTime.value = new Date()
+  }, 60000)
+}
+
+async function onSaveImage() {
+  if (!canvasRef.value) return
+  // 获取 canvas 的 PNG 数据
+  const dataUrl = canvasRef.value.toDataURL('image/png')
+  // 正确的正则写法
+  const base64 = dataUrl.replace(/^data:image\/png;base64,/, '')
+  const bytes = Uint8Array.from(atob(base64), c => c.charCodeAt(0))
+
+  const filePath = await save({
+    title: '保存卫星图片',
+    defaultPath: `satellite_${Date.now()}.png`,
+    filters: [{ name: 'PNG 图片', extensions: ['png'] }]
+  })
+  if (!filePath) return
+
+  await writeFile(filePath, bytes)
+}
+
+let touchTimer: number | null = null
+
+function onTouchStart() {
+  touchTimer = window.setTimeout(() => {
+    onSaveImage()
+  }, 600)
+}
+function onTouchEnd() {
+  if (touchTimer) {
+    clearTimeout(touchTimer)
+    touchTimer = null
+  }
+}
 </script>
 
 <style scoped>
