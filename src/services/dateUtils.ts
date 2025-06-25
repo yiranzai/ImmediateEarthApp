@@ -14,5 +14,19 @@ export function formatDate(date: Date, format: string): string {
     return `${year}-${month}-${day} ${weekday}`;
   }
 
+  if (format === 'M月d日 EEEE') {
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    const weekday = date.toLocaleDateString('zh-CN', { weekday: 'long' });
+    return `${month}月${day}日 ${weekday}`;
+  }
+
+  if (format === 'm月d日 EEEE') {
+    const month = String(date.getMonth() + 1);
+    const day = String(date.getDate()).padStart(2, '0');
+    const weekday = date.toLocaleDateString('zh-CN', { weekday: 'long' });
+    return `${month}月${day}日 ${weekday}`;
+  }
+
   return date.toISOString();
 }
