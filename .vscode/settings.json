@@ -5,5 +5,6 @@
     "tsconfig.json": "tsconfig.*.json",
     "README.md": "README.md, CHANGES.md, CODE_OF_CONDUCT.md, CONTRIBUTING.md, LICENSE",
     ".editorconfig": ".editorconfig, .prettierrc.json, biome.json, eslint.config.cjs"
-  }
+  },
+  "java.configuration.updateBuildConfiguration": "automatic"
 }
